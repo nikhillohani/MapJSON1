@@ -1907,7 +1907,7 @@ const App = (() => {
     pill.classList.toggle('is-online', !!isOnline);
     pill.classList.toggle('is-offline', !isOnline);
     const text = pill.querySelector('span');
-    if (text) text.textContent = isOnline ? 'Map Extension' : 'Extension Missing';
+    if (text) text.textContent = isOnline ? 'Activated' : 'Extension Missing';
     pill.title = isOnline ? 'Map extension is loaded' : 'Install or reload the MapJSON Connector extension';
   }
 
