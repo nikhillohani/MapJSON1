@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tool Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css?v=116" />
+</head>
+<body>
+  <div class="splash-screen" id="splash-screen">
+    <div class="splash-card">
+      <div class="splash-photo-wrap">
+        <img src="assets/dp.jpg" alt="Nikhil Lohani" class="splash-photo" />
+      </div>
+      <div class="splash-kicker">Developed By</div>
+      <div class="splash-credit">Nikhil Lohani</div>
+      <div class="splash-team">Creative Design Team</div>
+      <div class="splash-line"><span></span></div>
+    </div>
+  </div>
+
+  <main class="tool-hub" id="tool-hub" aria-labelledby="tool-hub-title">
+    <section class="hub-hero">
+      <div>
+        <div class="hub-kicker">Tool Hub Architecture</div>
+        <h1 id="tool-hub-title">Choose your workspace</h1>
+        <p>Open MapJSON to build location JSON entries quickly.</p>
+      </div>
+      <button class="theme-toggle hub-theme-toggle" id="theme-toggle" type="button" onclick="App.toggleThemeMode()">Night</button>
+    </section>
+    <section class="tool-grid" aria-label="Available tools">
+      <article class="tool-card mapjson-tool-card">
+        <div class="tool-card-icon" aria-hidden="true">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+        </div>
+        <div class="tool-card-copy">
+          <span>Existing Tool</span>
+          <h2>MapJSON</h2>
+          <p>Build location JSON entries from Google Maps URLs and manual address details.</p>
+        </div>
+        <button type="button" onclick="App.showTool('mapjson')">Open MapJSON</button>
+      </article>
+    </section>
+  </main>
+
+  <!-- ── BODY ── -->
+  <div class="shell tool-workspace" id="mapjson-workspace" hidden>
+
+    <!-- LEFT: GROUPS -->
+    <div class="left" id="left-col">
+      <div id="groups-container"></div>
+      <div class="panel tutorial-panel is-hidden">
+        <div class="panel-title">Fast Tutorial</div>
+        <div class="tutorial-list" id="tutorial-list"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: OUTPUT -->
+    <div class="right">
+      <div class="panel url-panel">
+        <div class="panel-title">
+          <img class="panel-title-icon map-pin-icon" src="assets/google-map-pin.png" alt="" aria-hidden="true" />
+          Google Maps URL
+          <span class="url-filled-meta" id="url-filled-meta">0 / 3 filled</span>
+        </div>
+
+        <div class="fg">
+          <textarea id="url-lookup-input" rows="3" oninput="App.validateLookupInputs()"
+            placeholder="https://www.google.com/maps"></textarea>
+        </div>
+
+        <div class="fg">
+          <label class="lbl">CTA URL</label>
+          <select id="cta-choice" class="native-cta-choice" required onchange="App.handleCtaChoiceChange(); App.syncGlobalCta();">
+            <option value="https://www.vdx.tv/">https://www.vdx.tv/</option>
+            <option value="custom">Custom URL</option>
+          </select>
+          <div class="cta-quick-row">
+            <input type="url" id="cta-quick-value" value="https://www.vdx.tv/" readonly aria-label="CTA URL" />
+            <button class="cta-custom-btn" id="cta-custom-btn" type="button" onclick="App.enableCustomCta()">Custom URL?</button>
+          </div>
+          <input type="url" id="url-lookup-cta" class="custom-cta-input is-hidden" placeholder="https://example.com" oninput="App.validateLookupInputs(); App.syncGlobalCta(); App.handleCtaChoiceChange();" />
+        </div>
+        <label class="check-row">
+          <input type="checkbox" id="global-cta-enabled" onchange="App.syncGlobalCta()" />
+          <span>Use this CTA URL for every saved address</span>
+        </label>
+
+        <button class="geo-search-btn" id="url-lookup-btn" onclick="App.lookupFromUrl()" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          Extract &amp; Build Entry
+        </button>
+        <div class="lookup-loading" id="lookup-loading" aria-live="polite">
+          <div class="modern-loader">
+            <span></span><span></span><span></span>
+          </div>
+          <b id="lookup-loading-text">Extracting map data...</b>
+        </div>
+        <div class="hint" id="url-lookup-hint"></div>
+
+        <div class="gmap-embed-block is-hidden" id="gmap-embed-block">
+          <label class="lbl">Map Preview <span class="gmap-embed-label" id="gmap-embed-label"></span></label>
+          <div class="gmap-embed-frame-wrap" id="gmap-embed-wrap">
+            <iframe class="gmap-embed-frame" id="gmap-embed-frame" loading="lazy" referrerpolicy="no-referrer-when-downgrade" title="Google Maps preview of the selected address"></iframe>
+            <div class="gmap-embed-empty" id="gmap-embed-empty">Select an address with lat/long to preview it here on Google Maps.</div>
+          </div>
+        </div>
+      </div>
+
+      <details class="panel dropdown-panel address-lookup-panel" id="address-lookup-panel">
+        <summary class="dropdown-summary">
+          <span class="panel-title">
+          <img class="panel-title-icon address-map-icon" src="assets/address-map-icon.png" alt="" aria-hidden="true" />
+          Address Details
+          </span>
+          <span class="dropdown-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="dropdown-content">
+          <div class="fg">
+            <textarea id="address-lookup-input" rows="3" oninput="App.validateLookupInputs()"
+              placeholder="The Well Cafe&#10;12 Market Street&#10;Denver, CO 80202"></textarea>
+          </div>
+          <button class="geo-search-btn" id="address-lookup-btn" onclick="App.lookupFromAddress()" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            Search &amp; Build Entry
+          </button>
+          <div class="lookup-loading" id="address-lookup-loading" aria-live="polite">
+            <div class="modern-loader">
+              <span></span><span></span><span></span>
+            </div>
+            <b id="address-lookup-loading-text">Searching address details...</b>
+          </div>
+          <div class="hint" id="address-lookup-hint"></div>
+        </div>
+      </details>
+
+      <!-- JSON Output -->
+      <details class="panel dropdown-panel json-output-panel is-hidden">
+        <summary class="dropdown-summary out-hdr">
+          <span class="panel-title" style="margin:0">Latest JSON Output</span>
+          <span class="dropdown-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="dropdown-content">
+        <div class="json-tabs" id="json-tabs">
+          <div class="json-tab-combo">
+            <button class="json-tab-main" type="button" data-slot-index="0" onclick="App.selectSlot(0)">
+              <img class="json-tab-pin" src="assets/address-tab-pin.svg" alt="" aria-hidden="true" />
+              <span>1</span>
+            </button>
+            <button class="json-tab-copy" id="json-map-copy-0" type="button" onclick="App.copySlotMapUrl(0)" title="Copy Map URL" aria-label="Copy Map URL for Address 1">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            </button>
+          </div>
+          <div class="json-tab-combo">
+            <button class="json-tab-main" type="button" data-slot-index="1" onclick="App.selectSlot(1)">
+              <img class="json-tab-pin" src="assets/address-tab-pin.svg" alt="" aria-hidden="true" />
+              <span>2</span>
+            </button>
+            <button class="json-tab-copy" id="json-map-copy-1" type="button" onclick="App.copySlotMapUrl(1)" title="Copy Map URL" aria-label="Copy Map URL for Address 2">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            </button>
+          </div>
+          <div class="json-tab-combo">
+            <button class="json-tab-main" type="button" data-slot-index="2" onclick="App.selectSlot(2)">
+              <img class="json-tab-pin" src="assets/address-tab-pin.svg" alt="" aria-hidden="true" />
+              <span>3</span>
+            </button>
+            <button class="json-tab-copy" id="json-map-copy-2" type="button" onclick="App.copySlotMapUrl(2)" title="Copy Map URL" aria-label="Copy Map URL for Address 3">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="optional-phone json-phone-tools" id="json-phone-wrap">
+          <button class="json-more-toggle" id="json-more-toggle" type="button" onclick="App.toggleJsonOptionsMenu()">Wanna add more option?</button>
+          <div class="json-more-panel is-hidden" id="json-more-panel">
+            <div class="json-field-option country-option" data-field="country">
+              <div>
+                <span>Country</span>
+                <small>Adds "country": "USA"</small>
+              </div>
+              <b>Field</b>
+              <div class="json-field-actions">
+                <button type="button" onclick="App.addJsonField('country')">Add</button>
+                <button type="button" onclick="App.removeJsonField('country')">Remove</button>
+              </div>
+            </div>
+            <div class="json-field-option phone-option" data-field="phone">
+              <div>
+                <span>Number</span>
+                <small>Adds "phone": ""</small>
+              </div>
+              <b>Field</b>
+              <div class="json-field-actions">
+                <button type="button" onclick="App.addJsonField('phone')">Add</button>
+                <button type="button" onclick="App.removeJsonField('phone')">Remove</button>
+              </div>
+            </div>
+          </div>
+          <div class="phone-field is-hidden" id="json-country-field">
+            <label class="lbl" for="json-country-input">Country for selected address</label>
+            <div class="phone-save-row">
+              <input id="json-country-input" type="text" placeholder="USA" />
+              <button class="phone-save-btn" id="json-country-save" type="button" onclick="App.saveJsonCountry()">Save</button>
+            </div>
+          </div>
+          <div class="phone-field is-hidden" id="json-phone-field">
+            <label class="lbl" for="json-phone-input">Phone for selected address</label>
+            <div class="phone-save-row">
+              <input id="json-phone-input" type="tel" inputmode="tel" placeholder="+1 555 123 4567" oninput="App.sanitizeJsonPhoneInput()" />
+              <button class="phone-save-btn" id="json-phone-save" type="button" onclick="App.saveJsonPhoneNumber()">Save</button>
+            </div>
+          </div>
+        </div>
+        </div>
+      </details>
+
+
+      <div class="panel recent-history-panel">
+        <div class="out-hdr">
+          <span class="panel-title" style="margin:0">Recent History</span>
+        </div>
+        <div class="recent-history-list" id="recent-history-list">
+          <div class="empty-hist">No downloads yet.</div>
+        </div>
+      </div>
+
+      <!-- Owner Usage Log -->
+      <div class="panel usage-panel admin-only" id="owner-usage-panel" style="display:none">
+        <div class="out-hdr">
+          <span class="panel-title" style="margin:0">Local Owner Log</span>
+          <button class="copy-sm" onclick="App.clearUsageLog()">Clear</button>
+        </div>
+        <div id="usage-list"><div class="empty-hist">No usage yet.</div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="success-modal" id="success-modal" aria-live="polite">
+    <div class="success-card">
+      <div class="success-visual">
+        <img src="assets/smile-emoji.gif" alt="" aria-hidden="true" />
+      </div>
+      <div class="success-title">Great Job!</div>
+      <div class="success-copy" id="success-copy">Your JSON was generated in just 00:00.</div>
+      <button type="button" onclick="App.closeSuccessModal()">Done</button>
+    </div>
+  </div>
+
+  <div class="install-modal" id="install-modal" aria-live="polite" role="dialog" aria-modal="true" aria-labelledby="install-modal-title">
+    <div class="install-card">
+      <button class="install-close" type="button" onclick="App.closeChromeInstallModal()" aria-label="Close">×</button>
+      <div class="install-icon" aria-hidden="true">
+        <svg width="34" height="34" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2"/>
+          <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M12 3h8M4.1 8.2l4 7M15.2 15.2l-4 6.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="install-title" id="install-modal-title">Add MapJSON to Chrome</div>
+      <p class="install-copy">Chrome requires users to approve extensions. Until the extension is published on the Chrome Web Store, load the bundled folder locally.</p>
+      <ol class="install-steps">
+        <li>Open <b>chrome://extensions</b>.</li>
+        <li>Turn on <b>Developer mode</b>.</li>
+        <li>Click <b>Load unpacked</b>.</li>
+        <li>Select the <b>chrome-extension</b> folder from this project.</li>
+      </ol>
+      <div class="install-actions">
+        <button type="button" onclick="App.openChromeExtensionsPage()">Open Extensions</button>
+        <button type="button" class="install-secondary" onclick="App.closeChromeInstallModal()">Done</button>
+      </div>
+    </div>
+  </div>
+
+  
+  <script src="js/app.js?v=116"></script>
+</body>
+</html>
