@@ -14,7 +14,7 @@ const App = (() => {
   const SPLASH_KEY = 'mapjson_splash_seen_v2';
   const MORE_FEATURES_PASSWORD = '1212';
   const OWNER_LOG_ENABLED = false; // Local browser-only debug panel. Keep false for live.
-  const CHROME_WEB_STORE_URL = ''; // Add the published Chrome Web Store URL here when it is ready.
+  const EXTENSION_FILE_URL = ''; // Paste your Box extension file URL here.
   const OWNER_NAMES = ['nikhil', 'nikhil lohani'];
   const DEFAULT_CTA_URL = 'https://www.vdx.tv/';
 
@@ -673,8 +673,9 @@ const App = (() => {
         <img class="group-logo mapjson-logo" src="assets/mapjson-logo.jpg" alt="MapJSON" />
       </div>
       <div class="group-head-tools">
-        <button class="undo-btn header-undo-btn" id="undo-btn" type="button" onclick="App.undoLastChange()" disabled>Undo</button>
-        <button class="undo-btn header-undo-btn" id="redo-btn" type="button" onclick="App.redoLastChange()" disabled>Redo</button>
+        <button class="header-map-cta header-extension-cta" type="button" onclick="App.openChromeInstall()" aria-label="Download MapJSON Connector extension" title="Download Extension">
+          <img src="assets/chrome-extension.png" alt="" aria-hidden="true" />
+        </button>
         <a class="gmap-open-cta header-map-cta is-disabled" id="gmap-open-cta" href="#" target="_blank" rel="noopener noreferrer" aria-label="Open Map">
           <img src="assets/google-map-pin.png" alt="" aria-hidden="true" />
           Open Map
@@ -711,6 +712,8 @@ const App = (() => {
         <button class="folder-btn" id="folder-btn-${g.gid}" onclick="App.chooseDownloadFolder(${g.gid})">
           Choose Folder
         </button>
+        <button class="undo-btn footer-undo-btn" id="undo-btn" type="button" onclick="App.undoLastChange()" disabled>Undo</button>
+        <button class="undo-btn footer-undo-btn" id="redo-btn" type="button" onclick="App.redoLastChange()" disabled>Redo</button>
         <button class="dl-btn${filledCount === g.slots.length && filledCount > 0 ? ' is-ready' : ' is-hidden'}" id="dl-${g.gid}"
           onclick="App.downloadGroup(${g.gid})"
           ${filledCount !== g.slots.length || !getCampaignName(g.gid) ? 'disabled' : ''}>
@@ -2238,10 +2241,12 @@ const App = (() => {
     const stores   = JSON.parse(g.generatedJSON).listing.stores;
     const filename = 'data.json';
     latestSubmissionId = createSubmissionId();
+    const elapsed = taskCompletedElapsed || formatElapsed(Date.now() - taskStartedAt);
     await downloadBlob(g.generatedJSON, filename, 'application/json');
     await recordDownloadHistory({
       id: latestSubmissionId,
       campaignName: campaignName || 'Untitled Campaign',
+      duration: elapsed,
       stores,
       filename
     });
@@ -2401,6 +2406,7 @@ const App = (() => {
       campaignName: record.campaignName,
       savedAt: now.toISOString(),
       savedAtDisplay: now.toLocaleString(),
+      duration: record.duration || '00:00',
       fileName: record.filename || 'data.json',
       storeCount: record.stores.length,
       summary: summarizeStores(record.stores),
@@ -2432,14 +2438,17 @@ const App = (() => {
       list.innerHTML = '<div class="empty-hist">No downloads yet.</div>';
       return;
     }
-    list.innerHTML = history.map(item => `
+    list.innerHTML = history.map(item => {
+      const meta = [item.savedAtDisplay || '', item.duration || ''].filter(Boolean).join(' • ');
+      return `
       <div class="recent-history-item">
         <div>
           <b>${esc(item.campaignName || 'Untitled Campaign')}</b>
-          <span>${esc(item.savedAtDisplay || '')}</span>
+          <span>${esc(meta)}</span>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   function renderHistory() {
@@ -2965,25 +2974,11 @@ const App = (() => {
   }
 
   function openChromeInstall() {
-    if (CHROME_WEB_STORE_URL) {
-      window.open(CHROME_WEB_STORE_URL, '_blank', 'noopener');
+    if (EXTENSION_FILE_URL) {
+      window.open(EXTENSION_FILE_URL, '_blank', 'noopener');
       return;
     }
-    openChromeInstallModal();
-  }
-
-  function openChromeInstallModal() {
-    const modal = document.getElementById('install-modal');
-    if (modal) modal.classList.add('show');
-  }
-
-  function closeChromeInstallModal() {
-    const modal = document.getElementById('install-modal');
-    if (modal) modal.classList.remove('show');
-  }
-
-  function openChromeExtensionsPage() {
-    window.open('chrome://extensions/', '_blank', 'noopener');
+    alert('Extension download link is not added yet. Paste your Box file URL in EXTENSION_FILE_URL inside js/app.js.');
   }
 
   function renderFastTutorials() {
@@ -3462,9 +3457,6 @@ const App = (() => {
     lockMoreFeatures,
     closeSuccessModal,
     openChromeInstall,
-    openChromeInstallModal,
-    closeChromeInstallModal,
-    openChromeExtensionsPage,
     toggleTutorialVideo,
     toggleFastTutorial,
     setThemeMode,

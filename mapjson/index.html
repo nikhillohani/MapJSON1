@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css?v=118" />
+  <link rel="stylesheet" href="css/style.css?v=136" />
 </head>
 <body>
   <div class="splash-screen" id="splash-screen">
@@ -250,32 +250,6 @@
     </div>
   </div>
 
-  <div class="install-modal" id="install-modal" aria-live="polite" role="dialog" aria-modal="true" aria-labelledby="install-modal-title">
-    <div class="install-card">
-      <button class="install-close" type="button" onclick="App.closeChromeInstallModal()" aria-label="Close">×</button>
-      <div class="install-icon" aria-hidden="true">
-        <svg width="34" height="34" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="2"/>
-          <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/>
-          <path d="M12 3h8M4.1 8.2l4 7M15.2 15.2l-4 6.8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-        </svg>
-      </div>
-      <div class="install-title" id="install-modal-title">Add MapJSON to Chrome</div>
-      <p class="install-copy">Chrome requires users to approve extensions. Until the extension is published on the Chrome Web Store, load the bundled folder locally.</p>
-      <ol class="install-steps">
-        <li>Open <b>chrome://extensions</b>.</li>
-        <li>Turn on <b>Developer mode</b>.</li>
-        <li>Click <b>Load unpacked</b>.</li>
-        <li>Select the <b>chrome-extension</b> folder from this project.</li>
-      </ol>
-      <div class="install-actions">
-        <button type="button" onclick="App.openChromeExtensionsPage()">Open Extensions</button>
-        <button type="button" class="install-secondary" onclick="App.closeChromeInstallModal()">Done</button>
-      </div>
-    </div>
-  </div>
-
-  
-  <script src="js/app.js?v=118"></script>
+  <script src="js/app.js?v=136"></script>
 </body>
 </html>
