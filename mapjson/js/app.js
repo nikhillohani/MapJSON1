@@ -15,6 +15,8 @@ const App = (() => {
   const MORE_FEATURES_PASSWORD = '1212';
   const OWNER_LOG_ENABLED = false; // Local browser-only debug panel. Keep false for live.
   const EXTENSION_FILE_URL = ''; // Paste your Box extension file URL here.
+  const SUPABASE_URL = 'https://evdhpksrnqwoqayhfyjz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInJlZiI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGhwa3NybnF3b3FheWhmeWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjkwNDYsImV4cCI6MjEwMzYwNTA0Nn0.9v4laJsYXroX-ZrP_5onLb0SEDxLXamc_huBF_4UNYY';
   const OWNER_NAMES = ['nikhil', 'nikhil lohani'];
   const DEFAULT_CTA_URL = 'https://www.vdx.tv/';
 
@@ -2391,6 +2393,55 @@ const App = (() => {
     localStorage.setItem(DOWNLOAD_HISTORY_KEY, JSON.stringify(history.slice(0, 100)));
   }
 
+
+  function hasSupabaseConfig() {
+    return SUPABASE_URL.startsWith('https://') && SUPABASE_ANON_KEY.length > 20;
+  }
+
+  async function saveRemoteHistory(entry) {
+    if (!hasSupabaseConfig()) return false;
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/mapjson_history`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal'
+      },
+      body: JSON.stringify({
+        campaign_name: entry.campaignName || 'Untitled Campaign',
+        duration: entry.duration || null,
+        store_count: entry.storeCount || 0,
+        data: entry.data || null
+      })
+    });
+    if (!response.ok) throw new Error(`Supabase save failed: ${response.status}`);
+    return true;
+  }
+
+  async function fetchRemoteHistory() {
+    if (!hasSupabaseConfig()) return null;
+    const response = await fetch(
+      `${SUPABASE_URL}/rest/v1/mapjson_history?select=id,campaign_name,duration,saved_at,store_count&order=saved_at.desc&limit=10`,
+      {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }
+    );
+    if (!response.ok) throw new Error(`Supabase fetch failed: ${response.status}`);
+    const rows = await response.json();
+    return rows.map(row => ({
+      id: row.id,
+      campaignName: row.campaign_name || 'Untitled Campaign',
+      savedAt: row.saved_at,
+      savedAtDisplay: row.saved_at ? new Date(row.saved_at).toLocaleString() : '',
+      duration: row.duration || '',
+      storeCount: row.store_count || 0
+    }));
+  }
+
   function summarizeStores(stores) {
     return stores
       .slice(0, 3)
@@ -2414,6 +2465,12 @@ const App = (() => {
     };
     saveDownloadHistory([entry, ...getDownloadHistory()]);
     renderRecentHistory();
+    try {
+      await saveRemoteHistory(entry);
+      await refreshRecentHistory();
+    } catch (e) {
+      console.warn(e);
+    }
     await writeHistoryRecordFile(entry);
   }
 
@@ -2430,10 +2487,23 @@ const App = (() => {
     }
   }
 
-  function renderRecentHistory() {
+  async function refreshRecentHistory() {
+    try {
+      const remoteHistory = await fetchRemoteHistory();
+      if (remoteHistory) {
+        renderRecentHistory(remoteHistory);
+        return;
+      }
+    } catch (e) {
+      console.warn(e);
+    }
+    renderRecentHistory();
+  }
+
+  function renderRecentHistory(historyOverride) {
     const list = document.getElementById('recent-history-list');
     if (!list) return;
-    const history = getDownloadHistory().slice(0, 10);
+    const history = (historyOverride || getDownloadHistory()).slice(0, 10);
     if (!history.length) {
       list.innerHTML = '<div class="empty-hist">No downloads yet.</div>';
       return;
@@ -3377,7 +3447,7 @@ const App = (() => {
     showTool('mapjson');
     renderFastTutorials();
     renderUsageLog();
-    renderRecentHistory();
+    refreshRecentHistory();
     validateLookupInputs();
     handleConnectorLaunchParams();
     startConnectorStatusMonitor();
