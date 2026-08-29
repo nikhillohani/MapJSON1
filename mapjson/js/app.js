@@ -16,7 +16,7 @@ const App = (() => {
   const OWNER_LOG_ENABLED = false; // Local browser-only debug panel. Keep false for live.
   const EXTENSION_FILE_URL = ''; // Paste your Box extension file URL here.
   const SUPABASE_URL = 'https://evdhpksrnqwoqayhfyjz.supabase.co';
-  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInJlZiI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGhwa3NybnF3b3FheWhmeWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjkwNDYsImV4cCI6MjEwMzYwNTA0Nn0.9v4laJsYXroX-ZrP_5onLb0SEDxLXamc_huBF_4UNYY';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGhwa3NybnF3b3FheWhmeWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjkwNDYsImV4cCI6MjEwMzYwNTA0Nn0.9v4laJsYXroX-ZrP_5onLb0SEDxLXamc_huBF_4UNYY';
   const OWNER_NAMES = ['nikhil', 'nikhil lohani'];
   const DEFAULT_CTA_URL = 'https://www.vdx.tv/';
 
