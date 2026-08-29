@@ -69,6 +69,8 @@ const App = (() => {
   let latestSubmissionId = '';
   let currentTool = 'hub';
   let forcedUrlTargetSlotIndex = null;
+  let connectorStatusTimer = null;
+  let connectorLastSeenAt = 0;
   const slotMaps = new Map();
   const reverseTimers = new Map();
   let gmapEmbedTimer = null;
@@ -677,6 +679,10 @@ const App = (() => {
           <img src="assets/google-map-pin.png" alt="" aria-hidden="true" />
           Open Map
         </a>
+        <span class="connector-status-pill is-offline" id="connector-status-pill" title="Map extension status">
+          <i aria-hidden="true"></i>
+          <span>Map Extension</span>
+        </span>
         <span class="pill timer-pill" id="task-timer">00:00</span>
         <button class="header-play-btn" id="header-play-btn" type="button" onclick="App.toggleFastTutorial()" aria-label="Toggle Fast Tutorial">
           <span aria-hidden="true"></span>
@@ -705,15 +711,15 @@ const App = (() => {
         <button class="folder-btn" id="folder-btn-${g.gid}" onclick="App.chooseDownloadFolder(${g.gid})">
           Choose Folder
         </button>
-        <button class="dl-btn${filledCount === 0 ? ' is-hidden' : ''}${filledCount === g.slots.length && filledCount > 0 ? ' is-ready' : ''}" id="dl-${g.gid}"
+        <button class="dl-btn${filledCount === g.slots.length && filledCount > 0 ? ' is-ready' : ' is-hidden'}" id="dl-${g.gid}"
           onclick="App.downloadGroup(${g.gid})"
-          ${filledCount === 0 || filledCount === g.slots.length ? 'disabled' : ''}>
+          ${filledCount !== g.slots.length || !getCampaignName(g.gid) ? 'disabled' : ''}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
             <polyline points="7 10 12 15 17 10"/>
             <line x1="12" y1="15" x2="12" y2="3"/>
           </svg>
-          ${filledCount === g.slots.length && filledCount > 0 ? 'Click me now' : `Download JSON (${filledCount} address${filledCount !== 1 ? 'es' : ''})`}
+          Download All JSON
         </button>
       </div>
     `);
@@ -1892,6 +1898,33 @@ const App = (() => {
     }, window.location.origin);
   }
 
+  function updateConnectorStatus(isOnline) {
+    const pill = document.getElementById('connector-status-pill');
+    if (!pill) return;
+    pill.classList.toggle('is-online', !!isOnline);
+    pill.classList.toggle('is-offline', !isOnline);
+    const text = pill.querySelector('span');
+    if (text) text.textContent = isOnline ? 'Map Extension' : 'Extension Missing';
+    pill.title = isOnline ? 'Map extension is loaded' : 'Install or reload the MapJSON Connector extension';
+  }
+
+  function pingConnectorStatus() {
+    window.postMessage({
+      source: 'MAPJSON_TOOL',
+      type: 'MAPJSON_CONNECTOR_PING'
+    }, window.location.origin);
+    setTimeout(() => {
+      updateConnectorStatus(Date.now() - connectorLastSeenAt < 2200);
+    }, 650);
+  }
+
+  function startConnectorStatusMonitor() {
+    if (connectorStatusTimer) clearInterval(connectorStatusTimer);
+    updateConnectorStatus(false);
+    pingConnectorStatus();
+    connectorStatusTimer = setInterval(pingConnectorStatus, 3000);
+  }
+
   function normalizeMapUrl(value) {
     try {
       const url = new URL(String(value || '').trim());
@@ -1952,6 +1985,11 @@ const App = (() => {
     if (event.origin !== window.location.origin) return;
     const data = event.data || {};
     if (data.source !== 'MAPJSON_CONNECTOR') return;
+    if (data.type === 'MAPJSON_CONNECTOR_PONG') {
+      connectorLastSeenAt = Date.now();
+      updateConnectorStatus(true);
+      return;
+    }
     if (Array.isArray(data.batch)) {
       receiveMapUrlBatchFromExtension(data.batch);
       return;
@@ -2176,8 +2214,12 @@ const App = (() => {
   async function downloadGroup(gid) {
     const g = groups.find(g => g.gid === gid);
     if (!g) return;
+    if (!isGroupComplete(g)) {
+      alert('Please fill all 3 slots before downloading JSON.');
+      return;
+    }
     const campaignName = getCampaignName(gid);
-    if (isGroupComplete(g) && !campaignName) {
+    if (!campaignName) {
       alert('Please enter Campaign Name before downloading JSON.');
       document.getElementById(`campaign-name-${gid}`)?.focus();
       return;
@@ -2220,7 +2262,8 @@ const App = (() => {
     const btn = document.getElementById(`dl-${gid}`);
     if (!btn || !g) return;
     const filledCount = g.slots.filter(slot => slot.data).length;
-    btn.disabled = filledCount === 0 || (isGroupComplete(g) && !getCampaignName(gid));
+    btn.classList.toggle('is-hidden', !isGroupComplete(g));
+    btn.disabled = !isGroupComplete(g) || !getCampaignName(gid);
   }
 
   async function chooseDownloadFolder(gid) {
@@ -3342,6 +3385,7 @@ const App = (() => {
     renderRecentHistory();
     validateLookupInputs();
     handleConnectorLaunchParams();
+    startConnectorStatusMonitor();
   }
 
   function handleSplash() {
