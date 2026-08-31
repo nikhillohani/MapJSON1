@@ -1868,8 +1868,7 @@ const App = (() => {
       }
       receiveMapUrlFromExtension(item.slot, item.url, {
         autoExtract: false,
-        scroll: false,
-        startedAt: options.startedAt
+        scroll: false
       });
       forcedUrlTargetSlotIndex = item.slot;
       await lookupFromUrl();
@@ -1903,6 +1902,30 @@ const App = (() => {
       source: 'MAPJSON_TOOL',
       type: 'MAPJSON_CLEAR_CONNECTOR_SLOT',
       slot: connectorSlot
+    }, window.location.origin);
+  }
+
+  function notifyConnectorSlotsSynced() {
+    const slots = (groups[0]?.slots || []).slice(0, 3).map((slot, index) => {
+      const data = slot?.data || null;
+      return {
+        slot: index + 1,
+        url: data?._mapUrl || '',
+        data: data ? {
+          label: data.label || '',
+          address: data.address || '',
+          city: data.city || '',
+          state: data.state || '',
+          zip: data.zip || '',
+          lat: data.lat ?? null,
+          long: data.long ?? null
+        } : null
+      };
+    });
+    window.postMessage({
+      source: 'MAPJSON_TOOL',
+      type: 'MAPJSON_SYNC_CONNECTOR_SLOTS',
+      slots
     }, window.location.origin);
   }
 
@@ -2922,6 +2945,7 @@ const App = (() => {
     storageSave();
     renderAll();
     selectSlot(selectedSlotIndex, { scroll: false });
+    notifyConnectorSlotsSynced();
   }
 
   function pushUndoState() {
