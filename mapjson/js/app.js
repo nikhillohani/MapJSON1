@@ -14,7 +14,7 @@ const App = (() => {
   const SPLASH_KEY = 'mapjson_splash_seen_v2';
   const MORE_FEATURES_PASSWORD = '1212';
   const OWNER_LOG_ENABLED = false; // Local browser-only debug panel. Keep false for live.
-  const EXTENSION_FILE_URL = ''; // Paste your Box extension file URL here.
+  const EXTENSION_FILE_URL = 'https://exponential.box.com/s/xwjk39g0rg1i13r44bd7o0t0vzuaws4w'; // Paste your Box extension file URL here.
   const SUPABASE_URL = 'https://evdhpksrnqwoqayhfyjz.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV2ZGhwa3NybnF3b3FheWhmeWp6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjkwNDYsImV4cCI6MjEwMzYwNTA0Nn0.9v4laJsYXroX-ZrP_5onLb0SEDxLXamc_huBF_4UNYY';
   const OWNER_NAMES = ['nikhil', 'nikhil lohani'];
@@ -1835,6 +1835,7 @@ const App = (() => {
     const safeIndex = Math.max(0, Math.min((groups[0]?.slots.length || 1) - 1, Number(slotIndex) || 0));
     const input = document.getElementById('url-lookup-input');
     if (!input || !mapUrl) return;
+    applyConnectorStartedAt(options.startedAt);
     showTool('mapjson');
     selectSlot(safeIndex, { scroll: options.scroll !== false });
     input.value = String(mapUrl);
@@ -1849,6 +1850,7 @@ const App = (() => {
   }
 
   async function receiveMapUrlBatchFromExtension(items, options = {}) {
+    applyConnectorStartedAt(options.startedAt);
     const cleanItems = (Array.isArray(items) ? items : [])
       .map(item => ({
         slot: Math.max(0, Math.min(2, Number(item.slot) - 1 || 0)),
@@ -1866,7 +1868,8 @@ const App = (() => {
       }
       receiveMapUrlFromExtension(item.slot, item.url, {
         autoExtract: false,
-        scroll: false
+        scroll: false,
+        startedAt: options.startedAt
       });
       forcedUrlTargetSlotIndex = item.slot;
       await lookupFromUrl();
@@ -1964,6 +1967,7 @@ const App = (() => {
 
   function handleConnectorLaunchParams() {
     const params = new URLSearchParams(window.location.search);
+    const startedAt = Number(params.get('mapjsonStartedAt')) || 0;
     const batchRaw = params.get('mapjsonBatch');
     if (batchRaw) {
       const autoExtract = params.get('mapjsonAuto') !== '0';
@@ -1971,7 +1975,7 @@ const App = (() => {
       try {
         const batch = JSON.parse(batchRaw);
         setTimeout(() => {
-          if (autoExtract) receiveMapUrlBatchFromExtension(batch);
+          if (autoExtract) receiveMapUrlBatchFromExtension(batch, { startedAt });
         }, 300);
       } catch (e) {
         setHint('url-lookup-hint', 'Could not read connector batch URLs.', 'er');
@@ -1983,7 +1987,7 @@ const App = (() => {
     const slot = Math.max(1, Math.min(3, Number(params.get('mapjsonSlot')) || 1)) - 1;
     const autoExtract = params.get('mapjsonAuto') !== '0';
     window.history.replaceState({}, document.title, window.location.pathname + window.location.hash);
-    setTimeout(() => receiveMapUrlFromExtension(slot, mapUrl, { autoExtract }), 300);
+    setTimeout(() => receiveMapUrlFromExtension(slot, mapUrl, { autoExtract, startedAt }), 300);
   }
 
   window.addEventListener('message', event => {
@@ -1996,11 +2000,11 @@ const App = (() => {
       return;
     }
     if (Array.isArray(data.batch)) {
-      receiveMapUrlBatchFromExtension(data.batch);
+      receiveMapUrlBatchFromExtension(data.batch, { startedAt: data.startedAt });
       return;
     }
     if (data.mapUrl) {
-      receiveMapUrlFromExtension(Number(data.slot) - 1, data.mapUrl);
+      receiveMapUrlFromExtension(Number(data.slot) - 1, data.mapUrl, { startedAt: data.startedAt });
     }
   });
 
@@ -2975,6 +2979,17 @@ const App = (() => {
   function startEntryTimer() {
     if (taskTimerInterval) return;
     startTaskTimer();
+  }
+
+  function applyConnectorStartedAt(startedAt) {
+    const parsed = Number(startedAt);
+    if (!Number.isFinite(parsed) || parsed <= 0 || parsed > Date.now()) return;
+    if (Date.now() - parsed > 12 * 60 * 60 * 1000) return;
+    if (taskTimerInterval) clearInterval(taskTimerInterval);
+    taskStartedAt = parsed;
+    taskCompletedElapsed = '';
+    updateTaskTimer();
+    taskTimerInterval = setInterval(updateTaskTimer, 1000);
   }
 
   function updateTaskTimer() {
