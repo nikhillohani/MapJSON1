@@ -73,6 +73,7 @@ const App = (() => {
   let forcedUrlTargetSlotIndex = null;
   let connectorStatusTimer = null;
   let connectorLastSeenAt = 0;
+  const mapEditEnabledSlots = new Set();
   const slotMaps = new Map();
   const reverseTimers = new Map();
   let gmapEmbedTimer = null;
@@ -842,6 +843,7 @@ const App = (() => {
     mapEl.innerHTML = `
       <div class="map-tiles"></div>
       ${showPin ? '<button type="button" class="map-pin" aria-label="Drag map pin"></button>' : ''}
+      ${previewOnly ? '' : '<button type="button" class="map-edit-toggle" aria-pressed="false">Edit pin: Off</button>'}
       <div class="map-zoom-controls" aria-label="Map zoom controls">
         <button type="button" class="map-zoom-btn" data-zoom="in" aria-label="Zoom in">+</button>
         <button type="button" class="map-zoom-btn" data-zoom="out" aria-label="Zoom out">−</button>
@@ -851,6 +853,7 @@ const App = (() => {
 
     const tilesLayer = mapEl.querySelector('.map-tiles');
     const marker = mapEl.querySelector('.map-pin');
+    const editToggle = mapEl.querySelector('.map-edit-toggle');
     let startX = 0;
     let startY = 0;
     let currentDx = 0;
@@ -864,6 +867,12 @@ const App = (() => {
     let panStartCenter = null;
     let panMoved = false;
     let lastMapFillAt = 0;
+    let editEnabled = !previewOnly && mapEditEnabledSlots.has(sid);
+    if (editToggle) {
+      mapEl.classList.toggle('map-edit-enabled', editEnabled);
+      editToggle.setAttribute('aria-pressed', String(editEnabled));
+      editToggle.textContent = editEnabled ? 'Edit pin: On' : 'Edit pin: Off';
+    }
 
     const positionMarker = () => {
       if (!marker) return;
@@ -1003,6 +1012,7 @@ const App = (() => {
 
     if (marker) {
       marker.addEventListener('pointerdown', event => {
+        if (!previewOnly && !editEnabled) return;
         event.preventDefault();
         event.stopPropagation();
         dragging = true;
@@ -1019,7 +1029,7 @@ const App = (() => {
       marker.addEventListener('pointercancel', onPointerUp);
     }
     const onMapPointerDown = event => {
-      if (event.target.closest('.map-zoom-controls')) return;
+      if (event.target.closest('.map-zoom-controls') || event.target.closest('.map-edit-toggle')) return;
       event.preventDefault();
       panning = true;
       panStartX = event.clientX;
@@ -1032,14 +1042,37 @@ const App = (() => {
     const onMapDoubleClick = event => {
       if (event.target.closest('.map-zoom-controls')) return;
       event.preventDefault();
+      if (!previewOnly && !editEnabled) {
+        setHint('json-edit-hint', 'Turn on Edit pin before changing location from map.', 'er');
+        return;
+      }
       if (!previewOnly) pushUndoState();
       moveMarkerToPoint(event.clientX, event.clientY, true);
     };
     const onMapClick = event => {
-      if (event.target.closest('.map-zoom-controls') || event.target.closest('.map-pin')) return;
+      if (event.target.closest('.map-zoom-controls') || event.target.closest('.map-pin') || event.target.closest('.map-edit-toggle')) return;
       if (panMoved || Date.now() - lastMapFillAt < 250) return;
+      if (!previewOnly && !editEnabled) {
+        setHint('json-edit-hint', 'Turn on Edit pin before changing location from map.', 'er');
+        return;
+      }
       fillGoogleMapsUrlFromMapClick(event.clientX, event.clientY);
     };
+    if (editToggle) {
+      editToggle.addEventListener('click', event => {
+        event.preventDefault();
+        event.stopPropagation();
+        editEnabled = !editEnabled;
+        if (editEnabled) {
+          mapEditEnabledSlots.add(sid);
+        } else {
+          mapEditEnabledSlots.delete(sid);
+        }
+        mapEl.classList.toggle('map-edit-enabled', editEnabled);
+        editToggle.setAttribute('aria-pressed', String(editEnabled));
+        editToggle.textContent = editEnabled ? 'Edit pin: On' : 'Edit pin: Off';
+      });
+    }
     mapEl.addEventListener('pointerdown', onMapPointerDown);
     mapEl.addEventListener('click', onMapClick);
     mapEl.addEventListener('dblclick', onMapDoubleClick);
@@ -2498,7 +2531,6 @@ const App = (() => {
     } catch (e) {
       console.warn(e);
     }
-    await writeHistoryRecordFile(entry);
   }
 
   async function writeHistoryRecordFile(entry) {
