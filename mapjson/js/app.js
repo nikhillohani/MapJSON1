@@ -26,17 +26,17 @@ const App = (() => {
     {
       id: 'json-use',
       title: 'Where We Used This JSON File?',
-      videoSrc: 'assets/tutorials/where-json-used.mp4',
+      videoSrc: '',
     },
     {
       id: 'mapjson-plus',
       title: 'How To Use MapJSON Plus',
-      videoSrc: 'assets/tutorials/how-to-use-mapjson-plus.mp4',
+      videoSrc: '',
     },
     {
       id: 'download-json',
       title: 'How To Download JSON File',
-      videoSrc: 'assets/tutorials/how-to-download-json.mp4',
+      videoSrc: '',
     },
   ];
 
@@ -74,6 +74,7 @@ const App = (() => {
   let connectorStatusTimer = null;
   let connectorLastSeenAt = 0;
   const mapEditEnabledSlots = new Set();
+  const mapViewStates = new Map();
   const slotMaps = new Map();
   const reverseTimers = new Map();
   let gmapEmbedTimer = null;
@@ -830,9 +831,11 @@ const App = (() => {
   function renderDraggablePinMap(mapEl, sid, lat, long, options = {}) {
     const previewOnly = !!options.previewOnly;
     const showPin = options.showPin !== false;
-    let zoom = options.zoom || 16;
-    let centerLat = lat;
-    let centerLong = long;
+    const viewKey = previewOnly ? `preview:${mapEl.id || sid}` : `slot:${sid}`;
+    const savedView = mapViewStates.get(viewKey) || {};
+    let zoom = Number.isFinite(Number(savedView.zoom)) ? Number(savedView.zoom) : (options.zoom || 16);
+    let centerLat = Number.isFinite(Number(savedView.centerLat)) ? Number(savedView.centerLat) : lat;
+    let centerLong = Number.isFinite(Number(savedView.centerLong)) ? Number(savedView.centerLong) : long;
     let markerLat = lat;
     let markerLong = long;
     const size = 256;
@@ -874,6 +877,10 @@ const App = (() => {
       editToggle.textContent = editEnabled ? 'Edit pin: On' : 'Edit pin: Off';
     }
 
+    const saveMapViewState = () => {
+      mapViewStates.set(viewKey, { zoom, centerLat, centerLong });
+    };
+
     const positionMarker = () => {
       if (!marker) return;
       const center = latLngToWorld(centerLat, centerLong, zoom);
@@ -906,6 +913,7 @@ const App = (() => {
 
     const setZoom = nextZoom => {
       zoom = Math.max(3, Math.min(19, nextZoom));
+      saveMapViewState();
       renderTiles();
     };
 
@@ -933,6 +941,7 @@ const App = (() => {
       const point = worldToLatLng(center.x + dx, center.y + dy, zoom);
       markerLat = point.lat;
       markerLong = point.long;
+      saveMapViewState();
       positionMarker();
       if (commit) {
         if (previewOnly) {
@@ -980,6 +989,7 @@ const App = (() => {
       const point = worldToLatLng(center.x + currentDx, center.y + currentDy, zoom);
       markerLat = point.lat;
       markerLong = point.long;
+      saveMapViewState();
       positionMarker();
       if (previewOnly) {
         updateLatLongFinderPreviewPin(point.lat, point.long, true);
@@ -998,6 +1008,7 @@ const App = (() => {
       );
       centerLat = nextCenter.lat;
       centerLong = nextCenter.long;
+      saveMapViewState();
       renderTiles();
     };
 
@@ -2853,6 +2864,10 @@ const App = (() => {
     const custom = document.getElementById('url-lookup-cta');
     const quick = document.getElementById('cta-quick-value');
     const customButton = document.getElementById('cta-custom-btn');
+    const globalToggle = document.getElementById('global-cta-enabled');
+    if (choice === 'custom' && globalToggle) {
+      globalToggle.checked = true;
+    }
     if (custom) {
       custom.classList.toggle('is-hidden', choice !== 'custom');
       custom.style.display = choice === 'custom' ? 'block' : 'none';
@@ -3122,20 +3137,56 @@ const App = (() => {
     alert('Extension download link is not added yet. Paste your Box file URL in EXTENSION_FILE_URL inside js/app.js.');
   }
 
+  function isYoutubeVideo(src) {
+    return /(?:youtube\.com\/embed\/|youtube\.com\/watch\?|youtu\.be\/)/i.test(String(src || ''));
+  }
+
+  function toYoutubeEmbedUrl(src) {
+    const raw = String(src || '').trim();
+    if (!raw) return '';
+    try {
+      const url = new URL(raw);
+      const id = url.hostname.includes('youtu.be')
+        ? url.pathname.replace('/', '')
+        : url.searchParams.get('v');
+      if (/youtube\.com\/embed\//i.test(raw)) {
+        url.searchParams.set('origin', window.location.origin);
+        return url.toString();
+      }
+      return id ? `https://www.youtube.com/embed/${id}?origin=${encodeURIComponent(window.location.origin)}` : raw;
+    } catch (e) {
+      return raw;
+    }
+  }
+
   function renderFastTutorials() {
     const list = document.getElementById('tutorial-list');
     if (!list) return;
     list.innerHTML = FAST_TUTORIALS.map(item => {
-      return `
-        <div class="tutorial-item" data-tutorial-id="${esc(item.id)}">
+      const src = String(item.videoSrc || '').trim();
+      const hasVideo = !!src;
+      const videoMarkup = !hasVideo ? `
+          <div class="tutorial-video-thumb" aria-hidden="true">
+            <span class="tutorial-play-mark">▶</span>
+            <b>Tutorial Coming Soon...</b>
+          </div>
+        ` : isYoutubeVideo(src) ? `
           <div class="tutorial-video is-hidden" id="tutorial-video-${esc(item.id)}">
-            <video controls preload="metadata" src="${esc(item.videoSrc || '')}">
+            <iframe src="${esc(toYoutubeEmbedUrl(src))}" title="${esc(item.title)}" loading="lazy" frameborder="0" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+          </div>
+        ` : `
+          <div class="tutorial-video is-hidden" id="tutorial-video-${esc(item.id)}">
+            <video controls preload="metadata" src="${esc(src)}">
               Your browser cannot play this video.
             </video>
           </div>
-          <button class="tutorial-topic" type="button" onclick="App.toggleTutorialVideo('${esc(item.id)}')">
+        `;
+      return `
+        <div class="tutorial-item" data-tutorial-id="${esc(item.id)}">
+          ${videoMarkup}
+          <button class="tutorial-topic" type="button" ${hasVideo ? `onclick="App.toggleTutorialVideo('${esc(item.id)}')"` : 'disabled'}>
             <span>${esc(item.title)}</span>
-            <b id="tutorial-toggle-label-${esc(item.id)}">Watch</b>
+            <b id="tutorial-toggle-label-${esc(item.id)}">${hasVideo ? 'Watch' : 'Coming Soon'}</b>
           </button>
         </div>
       `;
@@ -3499,10 +3550,14 @@ const App = (() => {
     }
     const blob = new Blob([content], { type });
     const a    = document.createElement('a');
-    a.href     = URL.createObjectURL(blob);
-    a.download = filename;
+    const url  = URL.createObjectURL(blob);
+    a.href     = url;
+    a.download = 'data.json';
+    a.style.display = 'none';
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
   // ── INIT ────────────────────────────────────────────────────
